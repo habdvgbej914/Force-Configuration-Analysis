@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 load_dotenv()
 
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analysis_history.json")
+DEEP_HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deep_analysis_history.json")
 
 app = FastMCP("contrarian-analysis-server")
 
@@ -271,6 +272,23 @@ def save_history(result):
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 
+def load_deep_history():
+    """Load deep analysis history / 加载深度分析历史"""
+    try:
+        with open(DEEP_HISTORY_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_deep_history(record):
+    """Save deep analysis to history with full reasoning chain / 保存深度分析到历史，含完整推理链"""
+    history = load_deep_history()
+    history.append(record)
+    with open(DEEP_HISTORY_FILE, "w") as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+
+
 # ============================================================
 # MCP Tools / MCP工具
 # ============================================================
@@ -307,8 +325,12 @@ def get_framework_guide() -> str:
         "HOW TO USE:",
         "1. Research the domain across all 6 criteria x 5 dimensions",
         "2. Make a binary judgment (0 or 1) for each criterion",
-        "3. Call quick_scan with your 6 judgments",
+        "3. For thorough analysis: call deep_scan with all 30 assessments + 6 judgments",
+        "   For fast screening: call quick_scan with just 6 judgments",
         "4. Translate result into business language recommendation",
+        "",
+        "deep_scan records the full reasoning chain for review and comparison.",
+        "quick_scan is for rapid multi-domain screening.",
         "",
         "RULE: Never use metaphysical terms in output. Business language only."
     ])
@@ -377,18 +399,189 @@ def quick_scan(
 
 
 @app.tool()
+def deep_scan(
+    domain: str,
+    c1_judgment: bool,
+    c1_origin: str, c1_visibility: str, c1_growth: str, c1_constraint: str, c1_foundation: str,
+    c2_judgment: bool,
+    c2_origin: str, c2_visibility: str, c2_growth: str, c2_constraint: str, c2_foundation: str,
+    c3_judgment_misaligned: bool,
+    c3_origin: str, c3_visibility: str, c3_growth: str, c3_constraint: str, c3_foundation: str,
+    c4_judgment: bool,
+    c4_origin: str, c4_visibility: str, c4_growth: str, c4_constraint: str, c4_foundation: str,
+    c5_judgment: bool,
+    c5_origin: str, c5_visibility: str, c5_growth: str, c5_constraint: str, c5_foundation: str,
+    c6_judgment: bool,
+    c6_origin: str, c6_visibility: str, c6_growth: str, c6_constraint: str, c6_foundation: str
+) -> str:
+    """Deep 6-bit analysis with full 30-dimension reasoning chain recorded.
+    深度6位分析，记录完整的30维度推理链。
+
+    For each criterion (c1-c6), provide:
+    - A binary judgment (True/False)
+    - Five dimension assessments (origin, visibility, growth, constraint, foundation)
+
+    对每条判断依据(c1-c6)，提供：
+    - 一个二进制判断(True/False)
+    - 五个维度评估(origin, visibility, growth, constraint, foundation)
+
+    Args:
+        domain: domain being analyzed / 被分析的领域
+        c1_judgment: C1 trend aligned? / C1趋势是否一致？
+        c1_origin: C1 origin dimension assessment / C1根本原因维度评估
+        c1_visibility: C1 visibility assessment / C1感知程度评估
+        c1_growth: C1 growth assessment / C1生长扩张评估
+        c1_constraint: C1 constraint assessment / C1边界收敛评估
+        c1_foundation: C1 foundation assessment / C1承载基础评估
+        c2_judgment: C2 energy accumulating? / C2能量是否积蓄？
+        c2_origin: C2 origin assessment
+        c2_visibility: C2 visibility assessment
+        c2_growth: C2 growth assessment
+        c2_constraint: C2 constraint assessment
+        c2_foundation: C2 foundation assessment
+        c3_judgment_misaligned: C3 incumbents misaligned? / C3现有玩家是否错位？
+        c3_origin: C3 origin assessment
+        c3_visibility: C3 visibility assessment
+        c3_growth: C3 growth assessment
+        c3_constraint: C3 constraint assessment
+        c3_foundation: C3 foundation assessment
+        c4_judgment: C4 can sustain? / C4能否持续？
+        c4_origin: C4 origin assessment
+        c4_visibility: C4 visibility assessment
+        c4_growth: C4 growth assessment
+        c4_constraint: C4 constraint assessment
+        c4_foundation: C4 foundation assessment
+        c5_judgment: C5 fundamentals solid? / C5基本面是否扎实？
+        c5_origin: C5 origin assessment
+        c5_visibility: C5 visibility assessment
+        c5_growth: C5 growth assessment
+        c5_constraint: C5 constraint assessment
+        c5_foundation: C5 foundation assessment
+        c6_judgment: C6 domain heavy? / C6领域是否重？
+        c6_origin: C6 origin assessment
+        c6_visibility: C6 visibility assessment
+        c6_growth: C6 growth assessment
+        c6_constraint: C6 constraint assessment
+        c6_foundation: C6 foundation assessment
+    """
+    # Build criterion states / 构建判断状态
+    states = {
+        "c1": int(c1_judgment),
+        "c2": int(c2_judgment),
+        "c3": 0 if c3_judgment_misaligned else 1,
+        "c4": int(c4_judgment),
+        "c5": int(c5_judgment),
+        "c6": int(c6_judgment)
+    }
+
+    # Build reasoning chain / 构建推理链
+    params = locals()
+    reasoning_chain = {}
+    for c_id in ["c1", "c2", "c3", "c4", "c5", "c6"]:
+        criterion = CRITERIA[c_id]
+        reasoning_chain[c_id] = {
+            "criterion": f"{criterion['label_en']} / {criterion['label_zh']}",
+            "question": criterion["question_en"],
+            "judgment": states[c_id],
+            "judgment_label": criterion["positive"] if states[c_id] == 1 else criterion["negative"],
+            "dimensions": {
+                phase: params[f"{c_id}_{phase}"]
+                for phase in FIVE_PHASES
+            }
+        }
+
+    # Run structural analysis / 运行结构分析
+    result = run_analysis(domain, states)
+
+    # Save to quick history / 保存到快速历史
+    save_history(result)
+
+    # Save full deep record / 保存完整深度记录
+    deep_record = {
+        "domain": domain,
+        "binary_code": result["binary_code"],
+        "timestamp": result["timestamp"],
+        "reasoning_chain": reasoning_chain,
+        "layers": result["layers"],
+        "cross_layer": result["cross_layer"],
+        "mislocation": result["mislocation"]
+    }
+    save_deep_history(deep_record)
+
+    # Format output / 格式化输出
+    lines = [
+        f"DEEP CONTRARIAN ANALYSIS: {domain}",
+        f"Binary Code: {result['binary_code']}",
+        f"{'=' * 50}",
+        ""
+    ]
+
+    # Reasoning chain per criterion / 每条依据的推理链
+    for c_id in ["c1", "c2", "c3", "c4", "c5", "c6"]:
+        rc = reasoning_chain[c_id]
+        symbol = "+" if rc["judgment"] == 1 else "-"
+        lines.append(f"[{c_id}] {rc['criterion']}")
+        lines.append(f"  Judgment: [{symbol}] {rc['judgment_label']}")
+        for phase in FIVE_PHASES:
+            lines.append(f"    {phase}: {rc['dimensions'][phase]}")
+        lines.append("")
+
+    # Layer synthesis / 层级综合
+    lines.append(f"{'─' * 50}")
+    lines.append("LAYER SYNTHESIS:")
+    for name in ["environment", "participant", "foundation"]:
+        l = result["layers"][name]
+        lines.extend([f"  {l['label']}: {l['interpretation']}"])
+
+    # Cross-layer / 跨层
+    lines.append("")
+    cl = result["cross_layer"]
+    lines.append(f"CROSS-LAYER: Momentum={cl['momentum']} x Substance={cl['substance']}")
+    lines.append(f"  {cl['interpretation']}")
+
+    # Mislocation / 错位
+    lines.append("")
+    ml = result["mislocation"]
+    lines.append(f"FORM-FLOW: {ml['type']}")
+    lines.append(f"  {ml['description']}")
+
+    lines.extend([
+        "",
+        f"{'=' * 50}",
+        f"Full reasoning chain saved to deep_analysis_history.json",
+        f"完整推理链已保存至 deep_analysis_history.json"
+    ])
+
+    return "\n".join(lines)
+
+
+@app.tool()
 def get_analysis_history() -> str:
-    """View past analysis results / 查看历史分析结果。"""
+    """View past analysis results (quick + deep) / 查看历史分析结果（快速+深度）。"""
     history = load_history()
-    if not history:
+    deep_history = load_deep_history()
+
+    if not history and not deep_history:
         return "No analysis history yet. / 暂无分析历史。"
 
     lines = ["ANALYSIS HISTORY / 分析历史", "=" * 40]
-    for i, h in enumerate(history):
-        lines.append(f"\n{i + 1}. {h['domain']}")
-        lines.append(f"   Code: {h['binary_code']} | Mislocation: {h['mislocation']}")
-        lines.append(f"   Momentum: {h['momentum']} | Substance: {h['substance']}")
-        lines.append(f"   Time: {h['timestamp']}")
+
+    if history:
+        lines.append("\n--- Quick Scans ---")
+        for i, h in enumerate(history):
+            lines.append(f"\n{i + 1}. {h['domain']}")
+            lines.append(f"   Code: {h['binary_code']} | Mislocation: {h['mislocation']}")
+            lines.append(f"   Momentum: {h['momentum']} | Substance: {h['substance']}")
+            lines.append(f"   Time: {h['timestamp']}")
+
+    if deep_history:
+        lines.append(f"\n--- Deep Analyses ({len(deep_history)} records) ---")
+        for i, h in enumerate(deep_history):
+            lines.append(f"\n{i + 1}. {h['domain']}")
+            lines.append(f"   Code: {h['binary_code']} | Mislocation: {h['mislocation']['type']}")
+            lines.append(f"   Momentum: {h['cross_layer']['momentum']} | Substance: {h['cross_layer']['substance']}")
+            lines.append(f"   Criteria chain: {' '.join(f'{c}={v['judgment']}' for c,v in h['reasoning_chain'].items())}")
+            lines.append(f"   Time: {h['timestamp']}")
 
     return "\n".join(lines)
 
@@ -406,9 +599,12 @@ def analyze_opportunity_prompt() -> str:
 Steps:
 1. Call get_framework_guide to understand the 6 criteria and 5 dimensions
 2. Research the domain the user wants to analyze
-3. For each of 6 criteria, assess the 5 dimensions, then make a binary judgment
-4. Call quick_scan with your 6 binary judgments
+3. For each of 6 criteria, assess all 5 dimensions thoroughly, then make a binary judgment
+4. Call deep_scan with all 30 dimension assessments and 6 binary judgments (for full reasoning chain)
+   OR call quick_scan with just the 6 binary judgments (for fast screening)
 5. Translate the result into a clear, actionable business recommendation
+
+Use deep_scan for thorough analysis. Use quick_scan only when comparing many domains quickly.
 
 CRITICAL: Never use metaphysical terminology in output. Business language only.
 重要：永远不要在输出中使用玄学术语。只用商业语言。"""
