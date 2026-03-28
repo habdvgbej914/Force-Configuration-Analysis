@@ -1,0 +1,110 @@
+[
+  {
+    "domain": "AI Agent",
+    "binary_code": "111001",
+    "timestamp": "2026-03-28T21:18:04.236519",
+    "reasoning_chain": {
+      "c1": {
+        "criterion": "Trend Alignment / 趋势方向",
+        "question": "Is this domain aligned or misaligned with the era's macro trend?",
+        "judgment": 1,
+        "judgment_label": "aligned",
+        "dimensions": {
+          "origin": "知识工作自动化的核心需求随劳动力成本上升而愈发紧迫，LLM能力持续跃升，根本驱动力在加速。",
+          "visibility": "公众关注度极高，各大科技公司、VC、企业IT部门全面跟进，资本流入规模巨大且仍在增长。",
+          "growth": "应用场景快速扩张：编程、销售、客服、研究、法律、金融、医疗，每周涌现新用例。",
+          "constraint": "监管仍处早期，MCP/A2A协议正在形成标准，技术瓶颈在快速消解，整体约束宽松。",
+          "foundation": "LLM API已商品化，开源框架成熟，人才池通过社区快速扩大，基础设施稳固。"
+        }
+      },
+      "c2": {
+        "criterion": "Energy State / 能量状态",
+        "question": "Is this domain currently accumulating or dissipating energy?",
+        "judgment": 1,
+        "judgment_label": "accumulating",
+        "dimensions": {
+          "origin": "核心能力持续深化：推理模型、多步工具调用、记忆架构均在进步，技术基础在加强而非碎片化。",
+          "visibility": "全行业处于主动建设姿态，GitHub Stars、框架下载量、会议演讲持续上涨，质量与数量同步提升。",
+          "growth": "Agent新创企业、企业采用团队、开源贡献者大量涌入，可靠性/规划/评估方向研究倍增。",
+          "constraint": "行业共识围绕工具调用、ReAct、计划-执行等模式逐步形成，MCP成为事实标准，混乱度在降低。",
+          "foundation": "顶级VC大量押注，AI人才向Agent相关岗位集中，云计算成本持续下降，资源净流入。"
+        }
+      },
+      "c3": {
+        "criterion": "Incumbent Alignment / 玩家匹配度",
+        "question": "Are incumbents matched or mismatched with the domain's nature?",
+        "judgment": 0,
+        "judgment_label": "mismatched",
+        "dimensions": {
+          "origin": "传统企业软件、BPO、咨询公司多数未理解核心问题是生产级可靠任务完成，在用AI增强旧产品而非重构。",
+          "visibility": "市场噪音远超实际交付价值，大量所谓AI Agent产品是高失败率的包装层，营销声索与可靠性存在巨大落差。",
+          "growth": "Incumbents在抢着发布功能公告，而非按先建可靠性再扩规模的自然节奏推进，速度优先于深度。",
+          "constraint": "多数Incumbent的护城河是临时性的：API转售、薄包装层、企业关系，任何提供更高可靠性者可颠覆。",
+          "foundation": "Incumbents有品牌和渠道，但缺乏Agent特定需求的领域专精可靠性工程能力，资源广而浅。"
+        }
+      },
+      "c4": {
+        "criterion": "Personal Sustainability / 个人持续力",
+        "question": "Can you sustain through the dormancy period?",
+        "judgment": 1,
+        "judgment_label": "can sustain",
+        "dimensions": {
+          "origin": "若动力来自对自动化和问题解决的真实兴趣，可支撑2-3年蛰伏；若出于FOMO，则不可持续。",
+          "visibility": "开发工具、API、测试框架免费可得，Discord/GitHub社区资源丰富，个人无需大资本即可调动资源。",
+          "growth": "构建Agent过程中同步积累可靠性工程、系统设计、领域专知，主动建设者在快速形成复利优势。",
+          "constraint": "止损线清晰：特定垂直场景、特定基准指标、特定客户群验证，快速失败文化支持。",
+          "foundation": "开发阶段API成本极低，小团队18-24个月资金可支撑，无重资产门槛，财务可持续性良好。"
+        }
+      },
+      "c5": {
+        "criterion": "Fundamental Solidity / 基本面虚实",
+        "question": "Are the fundamentals solid or hollow?",
+        "judgment": 1,
+        "judgment_label": "solid",
+        "dimensions": {
+          "origin": "核心需求无可争议：企业在知识工作上花费数万亿，可自动化比例真实存在，真实客户正在支付真实费用。",
+          "visibility": "差距存在但在收窄：试点正转化为生产，编程辅助/文档处理等品类已跨越付费门槛，行为证据充分。",
+          "growth": "有机价值链在形成：模型API到开发框架到垂直应用到企业合同，链条尚不成熟但有机增长中。",
+          "constraint": "商业模式在编程、客服、数据分析等垂直已验证，存在足够多的可参照证明点。",
+          "foundation": "数百万开发者每日使用AI编程工具，企业IT团队建立AIops实践，算力基础设施成熟，使用习惯规模化形成。"
+        }
+      },
+      "c6": {
+        "criterion": "Domain Weight / 领域轻重",
+        "question": "Is this domain heavy or light?",
+        "judgment": 0,
+        "judgment_label": "light",
+        "dimensions": {
+          "origin": "应用层核心价值来自领域专知和Agent可靠性工程的结合，两者积累均较慢，但整体属于中轻量领域。",
+          "visibility": "生产验证需3-12个月，Agent故障排查耗时，反馈循环比传统软件慢，但并非极慢。",
+          "growth": "框架/工具能力积累极快（新模型工具每周迭代），但垂直领域专知和企业客户信任积累慢，形成不对称。",
+          "constraint": "主要壁垒：生产可靠性（中等）、企业销售周期（慢）、领域专知（慢）。整体壁垒中等偏低。",
+          "foundation": "应用层入场门槛极低，但建立可防御地位需要时间积累，形成易进难守格局。"
+        }
+      }
+    },
+    "layers": {
+      "environment": {
+        "label": "Momentum / 势",
+        "interpretation": "Strongest momentum. Trend aligned and energy accumulating."
+      },
+      "participant": {
+        "label": "Feasibility / 可行性",
+        "interpretation": "Highest feasibility. Incumbents misaligned and you can sustain."
+      },
+      "foundation": {
+        "label": "Substance / 质",
+        "interpretation": "Real demand but low barriers. Easy to enter, easy to be displaced."
+      }
+    },
+    "cross_layer": {
+      "momentum": "strong",
+      "substance": "solid",
+      "interpretation": "Best window. Competition may have started. Feasibility layer decisive."
+    },
+    "mislocation": {
+      "type": "no_mislocation_positive",
+      "description": "Both form and flow present. Mainstream opportunity - competition likely active."
+    }
+  }
+]
