@@ -1,0 +1,5 @@
+.env
+analysis_history.json
+__pycache__/
+*.pyc
+.DS_Store
