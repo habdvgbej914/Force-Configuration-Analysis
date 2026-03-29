@@ -153,6 +153,70 @@ Momentum: strong | Substance: solid
 → Most stable. Solid fundamentals and heavy domain.
 Form-Flow: no_mislocation_positive
 ```
+deep_scan(
+    domain="RegTech for Independent Financial Advisors in China",
+    c1_judgment=True,
+    c1_origin="Regulatory compliance increasingly urgent, 46 firms penalized in 2025",
+    c1_visibility="Global RegTech growing but China IFA niche has minimal attention",
+    c1_growth="New compliance scenarios expanding: suitability, marketing review, post-investment tracking",
+    c1_constraint="CSRC crackdown intensifying, compliance cost certain to rise",
+    c1_foundation="Compliance talent scarce forming natural barrier; AMAC system interfaces exist",
+    c2_judgment=True,
+    c2_origin="Core regulatory-tech capability deepening globally",
+    c2_visibility="Market quiet, no hype but former P2P practitioners forming hidden talent pool",
+    c2_growth="Surviving firms per-client compliance cost rising, unit economics improving",
+    c2_constraint="Industry consensus forming: compliance is license-renewal prerequisite",
+    c2_foundation="Capital not flooding in, a few compliance SaaS teams growing quietly",
+    c3_judgment_misaligned=True,
+    c3_origin="Incumbents sell enterprise systems to IFAs — like delivering packages with trucks",
+    c3_visibility="Market noise from big compliance track, no IFA-specific products exist",
+    c3_growth="Large vendors wont customize for IFA teams with 2M yuan annual revenue",
+    c3_constraint="Existing barriers are relationship-based sales, not product quality",
+    c3_foundation="Incumbent resources are burden not value for IFAs",
+    c4_judgment=True,
+    c4_origin="Requires genuine passion for regulatory detail, not get-rich-quick motivation",
+    c4_visibility="AMAC/CSRC background builds trust fast, low resource mobilization threshold",
+    c4_growth="Every regulatory update is a product iteration, skills and demand grow in sync",
+    c4_constraint="Clear stop-loss: SaaS model, 18-24 months to see renewal data",
+    c4_foundation="Can fund product R&D with compliance consulting cash flow",
+    c5_judgment=True,
+    c5_origin="Demand driven by regulatory mandate, not narrative. AMAC audits are hard data",
+    c5_visibility="Low discussion but real pain, IFAs using Excel and DingTalk for compliance",
+    c5_growth="Compliance chain growing organically: KYC, suitability, post-investment records",
+    c5_constraint="Validated model exists in adjacent space: legal-tech SaaS annual subscription",
+    c5_foundation="User base is licensed institutions, payment driven by regulatory pressure",
+    c6_judgment=True,
+    c6_origin="Core value from long-term accumulation: regulatory database, case law, templates",
+    c6_visibility="Results visible only after 1-2 regulatory cycles",
+    c6_growth="Capability accumulation slow but once formed, nearly impossible to disrupt",
+    c6_constraint="Triple barrier: regulatory expertise + client trust + AMAC system integration",
+    c6_foundation="3-5 person team can launch, needs 1 member with licensed practice background"
+)
+```
+
+Output — full reasoning chain recorded to `deep_analysis_history.json`:
+```
+Binary Code: 110011
+
+[c1] Trend Alignment: [+] aligned
+  origin: Regulatory compliance increasingly urgent, 46 firms penalized in 2025
+  visibility: Global RegTech growing but China IFA niche has minimal attention
+  growth: New compliance scenarios expanding
+  constraint: CSRC crackdown intensifying
+  foundation: Compliance talent scarce forming natural barrier
+
+[c2] Energy State: [+] accumulating
+[c3] Incumbent Alignment: [-] mismatched
+[c4] Personal Sustainability: [+] can sustain
+[c5] Fundamental Solidity: [+] solid
+[c6] Domain Weight: [+] heavy
+
+Momentum: strong | Substance: solid
+→ Best window. Feasibility layer decisive.
+→ Highest feasibility. Incumbents misaligned and you can sustain.
+→ Most stable. Solid fundamentals and heavy domain.
+```
+
 
 ---
 
