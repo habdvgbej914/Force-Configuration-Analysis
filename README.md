@@ -153,6 +153,10 @@ Momentum: strong | Substance: solid
 → Most stable. Solid fundamentals and heavy domain.
 Form-Flow: no_mislocation_positive
 ```
+
+### Example: Deep Scan
+
+```python
 deep_scan(
     domain="RegTech for Independent Financial Advisors in China",
     c1_judgment=True,
