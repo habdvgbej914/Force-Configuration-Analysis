@@ -88,34 +88,34 @@ CRITERIA = {
     },
     "c5": {
         "layer": "foundation",
-        "label_en": "Fundamental Solidity",
-        "label_zh": "基本面虚实",
-        "question_en": "Are the fundamentals solid or hollow?",
-        "question_zh": "基本面是实的还是虚的？",
-        "positive": "solid",
-        "negative": "hollow",
+        "label_en": "Ecosystem Support",
+        "label_zh": "生态支撑",
+        "question_en": "Is the surrounding ecosystem supporting or rejecting this?",
+        "question_zh": "所处的生态系统是支撑还是排斥？",
+        "positive": "supporting",
+        "negative": "rejecting",
         "phase_prompts": {
-            "origin": "Is the demand real or manufactured by narrative?",
-            "visibility": "Gap between discussion and actual paying behavior.",
-            "growth": "How complete is the organic value chain?",
-            "constraint": "Does a validated business model exist?",
-            "foundation": "Are population, habits, infrastructure mature?"
+            "origin": "Does this exist because the ecosystem naturally needs it, or is it artificially imposed?",
+            "visibility": "Is the ecosystem visibly nurturing this, or is it indifferent/hostile?",
+            "growth": "Are surrounding industries, communities, and systems growing alongside this?",
+            "constraint": "Are ecosystem forces (regulation, society, nature) protecting or threatening this?",
+            "foundation": "Are the resources this depends on (people, materials, environment) naturally available?"
         }
     },
     "c6": {
         "layer": "foundation",
-        "label_en": "Domain Weight",
-        "label_zh": "领域轻重",
-        "question_en": "Is this domain heavy or light?",
-        "question_zh": "这个领域是重还是轻？",
-        "positive": "heavy",
-        "negative": "light",
+        "label_en": "Foundation Depth",
+        "label_zh": "根基深浅",
+        "question_en": "Is the foundation deep or shallow?",
+        "question_zh": "底层根基是深厚还是浅薄？",
+        "positive": "deep",
+        "negative": "shallow",
         "phase_prompts": {
-            "origin": "Core value from long-term accumulation or short-term creativity?",
-            "visibility": "How long for results to become visible?",
-            "growth": "Is capability accumulation fast or slow?",
-            "constraint": "Natural barrier: technical, qualifications, or networks?",
-            "foundation": "Minimum resource threshold to operate?"
+            "origin": "How much structural capacity exists to support long-term development?",
+            "visibility": "How long has this foundation been accumulating — years, decades, or just months?",
+            "growth": "Are the roots spreading deeper and wider, or staying at the surface?",
+            "constraint": "What natural barriers exist that protect this foundation from being easily replicated?",
+            "foundation": "How deeply embedded is this in existing systems, knowledge, and infrastructure?"
         }
     }
 }
@@ -146,10 +146,10 @@ LAYER_SYNTHESIS = {
         "label": "Substance / 质",
         "criteria": ["c5", "c6"],
         "interpretations": {
-            (1, 1): "Most stable. Solid fundamentals and heavy domain. High barrier, lasting advantage.",
-            (1, 0): "Real demand but low barriers. Easy to enter, easy to be displaced.",
-            (0, 1): "Highest risk. Heavy domain but hollow fundamentals.",
-            (0, 0): "Not worth serious consideration. Hollow and light."
+            (1, 1): "Most stable. Ecosystem supports and foundation runs deep. Enduring advantage.",
+            (1, 0): "Ecosystem supports but foundation is shallow. Vulnerable to disruption.",
+            (0, 1): "Deep foundation but ecosystem is hostile. High risk, timing dependent.",
+            (0, 0): "No ecosystem support and no foundation depth. Not viable."
         }
     }
 }
