@@ -1,10 +1,10 @@
 """
-Contrarian Daily Auto-Scanner / 逆向每日自动扫描
+Contrarian Daily Auto-Scanner v0.3 / 逆向每日自动扫描
 Uses Claude API with web search to analyze markets daily.
-Saves results and pushes to Telegram.
+Three-layer structural judgment replaces BUY/SELL signals.
 
 用法: python3 daily_scan.py
-定时: crontab 每天伦敦时间早8点（美股盘前）运行
+定时: crontab H4 frequency
 """
 
 import os
@@ -20,7 +20,6 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SCAN_HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily_scan_history.json")
 
-# Tickers to scan daily / 每日扫描标的
 TICKERS = {
     "GLD": {
         "name": "Gold / 黄金",
@@ -46,19 +45,19 @@ You just searched for current market information about {ticker} ({name}).
 
 Based on the search results, make 6 binary judgments for the Contrarian Framework:
 
-C1 - Trend Alignment: Is {ticker} aligned with the era's macro trend? (true/false)
-C2 - Energy State: Is energy accumulating in this domain right now? (true/false)  
-C3 - Incumbents Misaligned: Are most market participants positioned WRONG? (true/false)
-C4 - Can Sustain: Can a retail investor with 12-month horizon sustain this position? (true/false)
-C5 - Fundamentals Solid: Are the fundamentals real and validated? (true/false)
-C6 - Domain Heavy: Is this a heavy, high-barrier domain? (true/false)
+C1 - Trend Alignment (趋势方向): Is {ticker} aligned with the era's macro trend? (true/false)
+C2 - Energy State (能量状态): Is energy accumulating in this domain right now? (true/false)
+C3 - Incumbents Misaligned (玩家匹配度): Are most market participants positioned WRONG? (true/false)
+C4 - Personal Sustainability (个人持续力): Can a retail investor with 12-month horizon sustain this position? (true/false)
+C5 - Ecosystem Support (生态支撑): Is the surrounding ecosystem supporting this? (true/false)
+C6 - Foundation Depth (根基深浅): Is the foundation deep? (true/false)
 
 For each criterion, briefly assess across 5 dimensions:
-- origin (root cause)
-- visibility (market attention)  
-- growth (expansion trajectory)
-- constraint (barriers/limits)
-- foundation (infrastructure/resources)
+- origin (root cause / fundamental problem)
+- visibility (market attention / ecosystem nurturing)
+- growth (expansion / root deepening)
+- constraint (barriers / ecosystem forces)
+- foundation (infrastructure / embeddedness)
 
 RESPOND ONLY IN THIS EXACT JSON FORMAT, nothing else:
 {{
@@ -105,7 +104,7 @@ RESPOND ONLY IN THIS EXACT JSON FORMAT, nothing else:
 
 
 def call_claude_with_search(ticker_info):
-    """Call Claude API with web search to analyze a ticker / 调用Claude API搜索并分析标的"""
+    """Call Claude API with web search to analyze a ticker"""
     ticker = ticker_info["ticker"]
     name = ticker_info["name"]
     query = ticker_info["search_query"]
@@ -142,14 +141,11 @@ def call_claude_with_search(ticker_info):
 
         data = response.json()
 
-        # Extract text from response / 从响应中提取文本
         full_text = ""
         for block in data.get("content", []):
             if block.get("type") == "text":
                 full_text += block["text"]
 
-        # Parse JSON from response / 解析JSON
-        # Find JSON block in text
         json_start = full_text.find("{")
         json_end = full_text.rfind("}") + 1
         if json_start >= 0 and json_end > json_start:
@@ -166,7 +162,7 @@ def call_claude_with_search(ticker_info):
 
 
 def run_framework(analysis_data):
-    """Run the framework logic on Claude's analysis / 对Claude的分析运行框架逻辑"""
+    """Run the v0.3 framework with three-layer judgment"""
     from contrarian_analysis_mcp import run_analysis
 
     states = {
@@ -183,41 +179,36 @@ def run_framework(analysis_data):
         states
     )
 
-    # Determine signal / 确定信号
-    momentum = result["cross_layer"]["momentum"]
-    substance = result["cross_layer"]["substance"]
-    mislocation = result["mislocation"]["type"]
+    config = result["configuration"]
 
-    if mislocation == "form_without_flow" and momentum == "strong":
-        signal = "STRONG BUY"
-    elif mislocation == "form_without_flow" and momentum == "weak":
-        signal = "WATCH"
-    elif momentum == "strong" and substance == "solid":
-        if states["c3"] == 0:
-            signal = "BUY"
-        else:
-            signal = "HOLD"
-    elif momentum == "strong" and substance == "hollow":
-        signal = "CAUTION"
-    elif momentum == "weak" and substance == "solid":
-        signal = "WATCH"
-    elif momentum == "weak" and substance == "hollow":
-        signal = "AVOID"
-    else:
-        signal = "NEUTRAL"
+    position_judgments = {}
+    for p in config["positions"]:
+        position_judgments[p["criterion"]] = {
+            "judgment": p["judgment"],
+            "judgment_label": p["judgment_label"],
+            "direction": p["direction"],
+            "vitality": p["vitality"],
+            "lifecycle_label": p["lifecycle_label"],
+            "relation_label": p["relation_label"],
+        }
 
     return {
-        "signal": signal,
         "binary_code": result["binary_code"],
-        "momentum": momentum,
-        "substance": substance,
-        "mislocation": mislocation,
+        "configuration_name": config["configuration_name"],
+        "configuration_zh": config["configuration_zh"],
+        "evolution_stage": config["evolution_stage"],
+        "overall_judgment": config["overall_judgment"],
+        "overall_judgment_label": config["overall_judgment_label"],
+        "judgment_distribution": config["judgment_distribution"],
+        "mislocation": result["mislocation"]["type"],
+        "mislocation_desc": result["mislocation"]["description"],
+        "position_judgments": position_judgments,
         "states": states
     }
 
 
 def send_telegram(message):
-    """Send message to Telegram / 发送Telegram消息"""
+    """Send message to Telegram"""
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         print("  Telegram not configured, skipping notification.")
         return
@@ -239,7 +230,6 @@ def send_telegram(message):
 
 
 def load_scan_history():
-    """Load scan history / 加载扫描历史"""
     try:
         with open(SCAN_HISTORY_FILE, "r") as f:
             return json.load(f)
@@ -248,7 +238,6 @@ def load_scan_history():
 
 
 def save_scan_history(history):
-    """Save scan history / 保存扫描历史"""
     with open(SCAN_HISTORY_FILE, "w") as f:
         json.dump(history, f, ensure_ascii=False, indent=2)
 
@@ -258,7 +247,7 @@ def main():
     time_str = datetime.now().strftime("%H:%M")
 
     print(f"{'=' * 70}")
-    print(f"CONTRARIAN DAILY SCAN / 逆向每日扫描")
+    print(f"CONTRARIAN DAILY SCAN v0.3 / 逆向每日扫描")
     print(f"Date: {date_str} {time_str}")
     print(f"{'=' * 70}")
 
@@ -268,13 +257,12 @@ def main():
 
     history = load_scan_history()
     today_results = []
-    telegram_lines = [f"📊 *Contrarian Daily Scan*", f"📅 {date_str}", ""]
+    telegram_lines = [f"📊 *Contrarian Scan v0.3*", f"📅 {date_str} {time_str}", ""]
 
     for ticker, info in TICKERS.items():
         print(f"\n{'─' * 50}")
         print(f"Analyzing {ticker} ({info['name']})...")
 
-        # Step 1: Claude searches and analyzes / Claude搜索并分析
         analysis = call_claude_with_search({"ticker": ticker, **info})
 
         if analysis is None:
@@ -282,22 +270,24 @@ def main():
             telegram_lines.append(f"❌ {ticker}: Analysis failed")
             continue
 
-        # Step 2: Run framework / 运行框架
         framework_result = run_framework(analysis)
 
-        # Step 3: Record / 记录
         record = {
             "date": date_str,
             "time": time_str,
             "ticker": ticker,
             "name": info["name"],
             "price_estimate": analysis.get("price_estimate", "N/A"),
-            "signal": framework_result["signal"],
             "binary_code": framework_result["binary_code"],
-            "momentum": framework_result["momentum"],
-            "substance": framework_result["substance"],
+            "configuration": framework_result["configuration_name"],
+            "configuration_zh": framework_result["configuration_zh"],
+            "evolution": framework_result["evolution_stage"],
+            "judgment": framework_result["overall_judgment"],
+            "judgment_label": framework_result["overall_judgment_label"],
+            "judgment_distribution": framework_result["judgment_distribution"],
             "mislocation": framework_result["mislocation"],
             "states": framework_result["states"],
+            "position_judgments": framework_result["position_judgments"],
             "summary": analysis.get("summary", ""),
             "reasoning": {
                 c_id: {
@@ -320,45 +310,42 @@ def main():
         today_results.append(record)
         history.append(record)
 
-        # Print result / 打印结果
-        signal_icon = {
-            "STRONG BUY": "🟢🟢", "BUY": "🟢", "HOLD": "⚪",
-            "WATCH": "🟡", "CAUTION": "🟠", "AVOID": "🔴", "NEUTRAL": "⚪"
-        }.get(framework_result["signal"], "⚪")
-
+        # Print result
         print(f"  Price: {analysis.get('price_estimate', 'N/A')}")
-        print(f"  Signal: {signal_icon} {framework_result['signal']}")
+        print(f"  Config: {framework_result['configuration_name']} / {framework_result['configuration_zh']}")
+        print(f"  Assessment: {framework_result['overall_judgment_label']}")
         print(f"  Binary: {framework_result['binary_code']}")
-        print(f"  Momentum: {framework_result['momentum']} | Substance: {framework_result['substance']}")
+        print(f"  Evolution: {framework_result['evolution_stage']}")
         print(f"  Mislocation: {framework_result['mislocation']}")
+        print(f"  Per-position:")
+        for c_id in ["c1", "c2", "c3", "c4", "c5", "c6"]:
+            pj = framework_result["position_judgments"].get(c_id, {})
+            print(f"    {c_id.upper()}: {pj.get('judgment_label', 'N/A')}")
         print(f"  Summary: {analysis.get('summary', 'N/A')}")
 
+        judgment_short = framework_result["overall_judgment_label"].split(" / ")[0]
         telegram_lines.append(
-            f"{signal_icon} *{ticker}* ({info['name']}): {framework_result['signal']}\n"
-            f"   Price: {analysis.get('price_estimate', 'N/A')} | Binary: {framework_result['binary_code']}\n"
-            f"   {analysis.get('summary', '')}\n"
+            f"*{ticker}* | {framework_result['configuration_name']}\n"
+            f"  Assessment: {judgment_short}\n"
+            f"  Binary: {framework_result['binary_code']} | {framework_result['evolution_stage']}\n"
+            f"  {analysis.get('summary', '')}\n"
         )
 
-    # Save history / 保存历史
     save_scan_history(history)
     print(f"\n{'=' * 70}")
     print(f"Results saved to {SCAN_HISTORY_FILE}")
     print(f"Total historical records: {len(history)}")
 
-    # Send Telegram / 发送Telegram
     telegram_message = "\n".join(telegram_lines)
     send_telegram(telegram_message)
 
-    # Print summary table / 打印总结表
+    # Summary table
     print(f"\n{'─' * 70}")
-    print(f"TODAY'S SIGNALS / 今日信号 ({date_str})")
+    print(f"TODAY'S ASSESSMENTS / 今日评估 ({date_str} {time_str})")
     print(f"{'─' * 70}")
     for r in today_results:
-        signal_icon = {
-            "STRONG BUY": "🟢🟢", "BUY": "🟢", "HOLD": "⚪",
-            "WATCH": "🟡", "CAUTION": "🟠", "AVOID": "🔴"
-        }.get(r["signal"], "⚪")
-        print(f"  {signal_icon} {r['ticker']:5s} | {r['signal']:12s} | {r['binary_code']} | {r['price_estimate']}")
+        judgment_short = r["judgment_label"].split(" / ")[0]
+        print(f"  {r['ticker']:5s} | {r['configuration']:25s} | {judgment_short:25s} | {r['binary_code']} | {r['price_estimate']}")
 
 
 if __name__ == "__main__":
