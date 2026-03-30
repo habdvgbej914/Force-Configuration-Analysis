@@ -162,8 +162,8 @@ def call_claude_with_search(ticker_info):
 
 
 def run_framework(analysis_data):
-    """Run the v0.3 framework with three-layer judgment"""
-    from contrarian_analysis_mcp import run_analysis
+    """Run the v0.3 framework with intent query"""
+    from contrarian_analysis_mcp import run_analysis, _analyze_intent
 
     states = {
         "c1": int(analysis_data["c1_judgment"]),
@@ -180,6 +180,9 @@ def run_framework(analysis_data):
     )
 
     config = result["configuration"]
+
+    # Intent analysis — default seek_profit for financial tickers
+    intent_result = _analyze_intent(config, "seek_profit")
 
     position_judgments = {}
     for p in config["positions"]:
@@ -203,6 +206,7 @@ def run_framework(analysis_data):
         "mislocation": result["mislocation"]["type"],
         "mislocation_desc": result["mislocation"]["description"],
         "position_judgments": position_judgments,
+        "intent": intent_result,
         "states": states
     }
 
@@ -247,7 +251,7 @@ def main():
     time_str = datetime.now().strftime("%H:%M")
 
     print(f"{'=' * 70}")
-    print(f"CONTRARIAN DAILY SCAN v0.3 / 逆向每日扫描")
+    print(f"STRUCTURAL ANALYSIS DAILY SCAN v0.3 / 结构分析每日扫描")
     print(f"Date: {date_str} {time_str}")
     print(f"{'=' * 70}")
 
@@ -257,7 +261,7 @@ def main():
 
     history = load_scan_history()
     today_results = []
-    telegram_lines = [f"📊 *Contrarian Scan v0.3*", f"📅 {date_str} {time_str}", ""]
+    telegram_lines = [f"📊 *Structural Scan v0.3*", f"📅 {date_str} {time_str}", ""]
 
     for ticker, info in TICKERS.items():
         print(f"\n{'─' * 50}")
@@ -288,6 +292,7 @@ def main():
             "mislocation": framework_result["mislocation"],
             "states": framework_result["states"],
             "position_judgments": framework_result["position_judgments"],
+            "intent": framework_result["intent"],
             "summary": analysis.get("summary", ""),
             "reasoning": {
                 c_id: {
@@ -311,23 +316,30 @@ def main():
         history.append(record)
 
         # Print result
+        intent = framework_result["intent"]
         print(f"  Price: {analysis.get('price_estimate', 'N/A')}")
         print(f"  Config: {framework_result['configuration_name']} / {framework_result['configuration_zh']}")
-        print(f"  Assessment: {framework_result['overall_judgment_label']}")
-        print(f"  Binary: {framework_result['binary_code']}")
-        print(f"  Evolution: {framework_result['evolution_stage']}")
-        print(f"  Mislocation: {framework_result['mislocation']}")
-        print(f"  Per-position:")
-        for c_id in ["c1", "c2", "c3", "c4", "c5", "c6"]:
-            pj = framework_result["position_judgments"].get(c_id, {})
-            print(f"    {c_id.upper()}: {pj.get('judgment_label', 'N/A')}")
+        print(f"  Binary: {framework_result['binary_code']} | Evolution: {framework_result['evolution_stage']}")
+        print(f"  Profit Assessment: {intent['overall'].upper().replace('_', ' ')}")
+        print(f"    {intent['guidance']}")
+        print(f"  Target ({intent['target']['relation_label']}):")
+        for tp in intent['target']['positions']:
+            print(f"    [{tp['state']}] {tp['criterion'].upper()}: {tp['judgment']} (vitality: {tp['vitality']})")
+        print(f"  Helper ({intent['helper']['relation_label']}): {intent['helper']['logic']}")
+        for hp in intent['helper']['positions']:
+            print(f"    [{hp['state']}] {hp['criterion'].upper()}: {hp['judgment']} (vitality: {hp['vitality']})")
+        print(f"  Threat ({intent['threat']['relation_label']}): {intent['threat']['logic']}")
+        for tp in intent['threat']['positions']:
+            print(f"    [{tp['state']}] {tp['criterion'].upper()}: {tp['judgment']} (vitality: {tp['vitality']})")
         print(f"  Summary: {analysis.get('summary', 'N/A')}")
 
+        intent_short = intent['overall'].upper().replace('_', ' ')
         judgment_short = framework_result["overall_judgment_label"].split(" / ")[0]
         telegram_lines.append(
             f"*{ticker}* | {framework_result['configuration_name']}\n"
-            f"  Assessment: {judgment_short}\n"
-            f"  Binary: {framework_result['binary_code']} | {framework_result['evolution_stage']}\n"
+            f"  Profit: {intent_short}\n"
+            f"  State: {judgment_short}\n"
+            f"  Binary: {framework_result['binary_code']}\n"
             f"  {analysis.get('summary', '')}\n"
         )
 
@@ -344,8 +356,8 @@ def main():
     print(f"TODAY'S ASSESSMENTS / 今日评估 ({date_str} {time_str})")
     print(f"{'─' * 70}")
     for r in today_results:
-        judgment_short = r["judgment_label"].split(" / ")[0]
-        print(f"  {r['ticker']:5s} | {r['configuration']:25s} | {judgment_short:25s} | {r['binary_code']} | {r['price_estimate']}")
+        intent_short = r.get("intent", {}).get("overall", "N/A").upper().replace("_", " ")
+        print(f"  {r['ticker']:5s} | {r['configuration']:25s} | {intent_short:25s} | {r['binary_code']} | {r['price_estimate']}")
 
 
 if __name__ == "__main__":
