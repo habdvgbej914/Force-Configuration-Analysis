@@ -701,7 +701,7 @@ def get_analysis_history() -> str:
         for i, h in enumerate(history):
             lines.extend([f"\n{i+1}. {h['domain']}",
                           f"   Code: {h['binary_code']} | {h.get('configuration','N/A')} / {h.get('configuration_zh','')}",
-                          f"   Lifecycle: {h.get('lifecycle','N/A')} | Mislocation: {h['mislocation']}",
+                          f"   Judgment: {h.get('judgment_label','N/A')} | Mislocation: {h['mislocation']}",
                           f"   Time: {h['timestamp']}"])
     if deep_history:
         lines.append(f"\n--- Deep Analyses ({len(deep_history)}) ---")
@@ -709,22 +709,244 @@ def get_analysis_history() -> str:
             cfg = h.get('configuration', {})
             lines.extend([f"\n{i+1}. {h['domain']}", f"   Code: {h['binary_code']}",
                           f"   Config: {cfg.get('configuration_name','N/A')} / {cfg.get('configuration_zh','')}",
-                          f"   Lifecycle: {cfg.get('overall_lifecycle','N/A')}", f"   Time: {h['timestamp']}"])
+                          f"   Time: {h['timestamp']}"])
     return "\n".join(lines)
+
+
+# ============================================================
+# Intent Query System / 意图查询系统
+# Based on six structural relations (六亲):
+# User brings an intent → framework identifies which relation to examine
+# → reports target state, helpers, threats, and guidance
+# ============================================================
+
+# Six-relation generation and control cycles
+_RELATION_GENERATES = {
+    "upstream_support": "peer_competitor",
+    "peer_competitor": "derivative_output",
+    "derivative_output": "accessible_resource",
+    "accessible_resource": "external_pressure",
+    "external_pressure": "upstream_support",
+}
+_RELATION_CONTROLS = {
+    "peer_competitor": "accessible_resource",
+    "accessible_resource": "upstream_support",
+    "upstream_support": "derivative_output",
+    "derivative_output": "external_pressure",
+    "external_pressure": "peer_competitor",
+}
+
+_INTENT_MAP = {
+    "seek_profit": {
+        "target": "accessible_resource",
+        "label": "Seek Profit / 求财",
+        "helper": "derivative_output",
+        "helper_logic": "Output generates resources",
+        "threat": "peer_competitor",
+        "threat_logic": "Competition drains resources",
+    },
+    "seek_position": {
+        "target": "external_pressure",
+        "label": "Seek Position / 求职求名",
+        "helper": "accessible_resource",
+        "helper_logic": "Resources attract authority",
+        "threat": "derivative_output",
+        "threat_logic": "Output disperses authority focus",
+    },
+    "seek_protection": {
+        "target": "upstream_support",
+        "label": "Seek Protection / 求庇护",
+        "helper": "external_pressure",
+        "helper_logic": "Authority reinforces support structures",
+        "threat": "accessible_resource",
+        "threat_logic": "Resource extraction weakens support",
+    },
+    "seek_output": {
+        "target": "derivative_output",
+        "label": "Seek Output / 求产出",
+        "helper": "peer_competitor",
+        "helper_logic": "Peer activity stimulates output",
+        "threat": "upstream_support",
+        "threat_logic": "Support structures constrain output",
+    },
+    "assess_competition": {
+        "target": "peer_competitor",
+        "label": "Assess Competition / 看竞争",
+        "helper": "upstream_support",
+        "helper_logic": "Support strengthens competitive position",
+        "threat": "external_pressure",
+        "threat_logic": "External pressure suppresses competitors",
+    },
+}
+
+def _analyze_intent(config, intent_key):
+    """Analyze a configuration from the perspective of a specific intent"""
+    intent = _INTENT_MAP[intent_key]
+    positions = config["positions"]
+
+    targets = [p for p in positions if p["structural_relation"] == intent["target"]]
+    helpers = [p for p in positions if p["structural_relation"] == intent["helper"]]
+    threats = [p for p in positions if p["structural_relation"] == intent["threat"]]
+
+    # Assess target strength
+    active_targets = [t for t in targets if t["state"] == 1]
+    target_favorable = any(
+        t["vitality"] in ("vital", "nascent") and t["direction"] in ("support", "resource", "peer")
+        for t in active_targets
+    )
+    target_present = len(active_targets) > 0
+
+    # Assess helper strength
+    active_helpers = [h for h in helpers if h["state"] == 1]
+    helper_strong = any(h["vitality"] in ("vital", "nascent") for h in active_helpers)
+
+    # Assess threat level
+    active_threats = [t for t in threats if t["state"] == 1]
+    threat_active = any(t["vitality"] == "vital" for t in active_threats)
+
+    # Generate guidance
+    if target_present and helper_strong and not threat_active:
+        overall = "strongly_supported"
+        guidance = "Conditions strongly support this intent. Target is present with active helpers and no significant threats."
+    elif target_present and helper_strong and threat_active:
+        overall = "supported_with_resistance"
+        guidance = "Conditions support this intent but with active resistance. Proceed with awareness of competitive/structural threats."
+    elif target_present and not helper_strong and not threat_active:
+        overall = "possible_but_unsupported"
+        guidance = "Target exists but lacks active support. Feasible but may require patience or external catalysts."
+    elif target_present and not helper_strong and threat_active:
+        overall = "challenged"
+        guidance = "Target exists but faces active threats without helper support. High risk of resource drain."
+    elif not target_present and helper_strong:
+        overall = "indirect_path"
+        guidance = "Target not currently active, but helpers are strong. Build through indirect approach — strengthen the helpers first."
+    elif not target_present and not helper_strong:
+        overall = "not_viable"
+        guidance = "Neither target nor helpers are active. Conditions do not support this intent at this time."
+    else:
+        overall = "uncertain"
+        guidance = "Mixed signals. Requires deeper analysis of specific position interactions."
+
+    return {
+        "intent": intent["label"],
+        "overall": overall,
+        "guidance": guidance,
+        "target": {
+            "relation": intent["target"],
+            "relation_label": _RELATION_LABELS[intent["target"]],
+            "positions": [{
+                "criterion": t["criterion"],
+                "state": "active" if t["state"] == 1 else "inactive",
+                "judgment": t["judgment_label"],
+                "vitality": t["vitality"],
+                "direction": t["direction"],
+            } for t in targets]
+        },
+        "helper": {
+            "relation": intent["helper"],
+            "relation_label": _RELATION_LABELS[intent["helper"]],
+            "logic": intent["helper_logic"],
+            "positions": [{
+                "criterion": h["criterion"],
+                "state": "active" if h["state"] == 1 else "inactive",
+                "judgment": h["judgment_label"],
+                "vitality": h["vitality"],
+            } for h in helpers]
+        },
+        "threat": {
+            "relation": intent["threat"],
+            "relation_label": _RELATION_LABELS[intent["threat"]],
+            "logic": intent["threat_logic"],
+            "positions": [{
+                "criterion": t["criterion"],
+                "state": "active" if t["state"] == 1 else "inactive",
+                "judgment": t["judgment_label"],
+                "vitality": t["vitality"],
+            } for t in threats]
+        },
+    }
+
+
+@app.tool()
+def query_intent(domain: str, c1: int, c2: int, c3: int, c4: int, c5: int, c6: int,
+                 intent: str) -> str:
+    """Query a configuration with a specific intent.
+    意图查询：带着目的分析配置。
+
+    Args:
+        domain: what is being analyzed
+        c1-c6: binary judgments (1=positive, 0=negative)
+        intent: one of 'seek_profit', 'seek_position', 'seek_protection', 'seek_output', 'assess_competition'
+    """
+    if intent not in _INTENT_MAP:
+        return f"Unknown intent '{intent}'. Valid: {', '.join(_INTENT_MAP.keys())}"
+
+    states = {"c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5, "c6": c6}
+    result = run_analysis(domain, states)
+    config = result["configuration"]
+    intent_result = _analyze_intent(config, intent)
+
+    lines = [
+        f"INTENT QUERY: {domain}",
+        f"Intent: {intent_result['intent']}",
+        f"Config: {config['configuration_name']} / {config['configuration_zh']}",
+        f"Binary: {result['binary_code']} | Evolution: {config['evolution_stage']}",
+        f"{'=' * 50}",
+        "",
+        f"ASSESSMENT: {intent_result['overall'].upper().replace('_', ' ')}",
+        f"  {intent_result['guidance']}",
+        "",
+        f"TARGET — {intent_result['target']['relation_label']}:",
+    ]
+    for p in intent_result['target']['positions']:
+        lines.append(f"  [{p['state']}] {p['criterion'].upper()}: {p['judgment']} (vitality: {p['vitality']}, direction: {p['direction']})")
+
+    lines.extend(["", f"HELPER — {intent_result['helper']['relation_label']}:",
+                   f"  Logic: {intent_result['helper']['logic']}"])
+    for p in intent_result['helper']['positions']:
+        lines.append(f"  [{p['state']}] {p['criterion'].upper()}: {p['judgment']} (vitality: {p['vitality']})")
+
+    lines.extend(["", f"THREAT — {intent_result['threat']['relation_label']}:",
+                   f"  Logic: {intent_result['threat']['logic']}"])
+    for p in intent_result['threat']['positions']:
+        lines.append(f"  [{p['state']}] {p['criterion'].upper()}: {p['judgment']} (vitality: {p['vitality']})")
+
+    # Mitigation advice if threats are active
+    active_threats = [p for p in intent_result['threat']['positions'] if p['state'] == 'active']
+    if active_threats:
+        lines.extend(["", "MITIGATION:"])
+        threat_rel = intent_result['threat']['relation']
+        controller = [k for k, v in _RELATION_CONTROLS.items() if v == threat_rel]
+        if controller:
+            controller_label = _RELATION_LABELS.get(controller[0], controller[0])
+            lines.append(f"  To reduce threat: strengthen {controller_label}")
+            controller_positions = [p for p in config['positions'] if p['structural_relation'] == controller[0]]
+            for cp in controller_positions:
+                s = "active" if cp["state"] == 1 else "inactive"
+                lines.append(f"    {cp['criterion'].upper()} [{s}]: {cp['judgment_label']}")
+
+    return "\n".join(lines)
+
 
 @app.prompt("analyze-opportunity")
 def analyze_opportunity_prompt() -> str:
-    return """You are using the Contrarian Opportunity Analysis System v0.2.
+    return """You are using the Structural Analysis System v0.3.
 
 Steps:
-1. Call get_framework_guide to understand criteria, dimensions, and lifecycle
-2. Research the domain
+1. Call get_framework_guide to understand the 6 criteria and 5 dimensions
+2. Research the domain the user wants to analyze
 3. For each criterion, assess 5 dimensions, make binary judgment
-4. Call deep_scan with all 30 assessments
-5. Translate into actionable business recommendation with:
-   - Configuration name and lifecycle positioning
-   - Which criteria are at peak vs declining stages
-   - Structural relationships between criteria
+4. Call quick_scan or deep_scan to get the structural configuration
+5. Ask the user what their INTENT is (what do they want to achieve?)
+6. Call query_intent with the same c1-c6 values and the user's intent
+7. Present the guidance: what supports their intent, what threatens it, how to mitigate
+
+INTENTS:
+  seek_profit — looking for returns/resources
+  seek_position — looking for career/authority/recognition
+  seek_protection — looking for support/backing/safety
+  seek_output — looking for innovation/growth/new products
+  assess_competition — understanding competitive dynamics
 
 ALL OUTPUT IN BUSINESS LANGUAGE. No metaphysical terminology."""
 
