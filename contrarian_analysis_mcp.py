@@ -180,6 +180,123 @@ _RELATION_LABELS = {
     "unknown": "Unknown"
 }
 
+# ============================================================
+# Three-Layer Judgment Engine / 三层判断引擎
+# Based on Xiao Ji's method from "论扶抑" in 五行大义:
+# Layer 1: 扶抑 (Support vs Suppress direction)
+# Layer 2: 有气无气 (Vital vs Depleted lifecycle)
+# Layer 3: 合德 vs 刑克 (Harmony vs Conflict modifier)
+# ============================================================
+
+# Layer 1: 扶抑 direction
+# 母得子为扶 (my child supports me), 子遇母为抑 (my parent suppresses me)
+def _get_fu_yi(base_element, yao_element):
+    """Determine support/suppress direction between palace element and yao element"""
+    if yao_element == base_element:
+        return "peer"       # 比和 - same element
+    if yao_element == _ELEMENT_GENERATES[base_element]:
+        return "support"    # 扶 - child supports parent
+    if base_element == _ELEMENT_GENERATES[yao_element]:
+        return "suppress"   # 抑 - parent suppresses child
+    if yao_element == _ELEMENT_CONTROLS[base_element]:
+        return "resource"   # 我克 - I control it (妻财)
+    if base_element == _ELEMENT_CONTROLS[yao_element]:
+        return "pressure"   # 克我 - it controls me (官鬼)
+    return "peer"
+
+# Layer 2: 有气无气 (from lifecycle stage)
+_VITAL_STAGES = {"launch", "volatility", "standards", "acceleration", "dominance"}
+_DEPLETED_STAGES = {"deceleration", "structural_issues", "loss_of_momentum", "transformation"}
+_NASCENT_STAGES = {"conception", "incubation", "nurturing"}
+
+def _get_qi_state(lifecycle_id):
+    """Determine vitality from lifecycle stage"""
+    if lifecycle_id in _VITAL_STAGES: return "vital"
+    if lifecycle_id in _DEPLETED_STAGES: return "depleted"
+    if lifecycle_id in _NASCENT_STAGES: return "nascent"
+    return "nascent"
+
+# Layer 3: 合德 vs 刑克 (branch relationships)
+_LIUHE = {"yin":"hai","hai":"yin","mao":"xu","xu":"mao","chen":"you","you":"chen",
+          "si":"shen","shen":"si","wu":"wei","wei":"wu","zi":"chou","chou":"zi"}
+_XING = {"zi":"mao","mao":"zi","chou":"xu","xu":"wei","wei":"chou",
+         "yin":"si","si":"shen","shen":"yin","chen":"chen","wu":"wu","you":"you","hai":"hai"}
+_CHONG = {"zi":"wu","wu":"zi","chou":"wei","wei":"chou","yin":"shen","shen":"yin",
+          "mao":"you","you":"mao","chen":"xu","xu":"chen","si":"hai","hai":"si"}
+_HAI_HARM = {"xu":"you","you":"xu","hai":"shen","shen":"hai","zi":"wei","wei":"zi",
+             "chou":"wu","wu":"chou","yin":"si","si":"yin","mao":"chen","chen":"mao"}
+
+def _check_branch_relations(branch, other_branches):
+    """Check harmony/conflict relations between a branch and other active branches"""
+    relations = set()
+    for ob in other_branches:
+        if _LIUHE.get(branch) == ob: relations.add("harmony")
+        if _XING.get(branch) == ob: relations.add("consumption")
+        if _CHONG.get(branch) == ob: relations.add("opposition")
+        if _HAI_HARM.get(branch) == ob: relations.add("hidden_damage")
+    if not relations: relations.add("neutral")
+    return list(relations)
+
+# Three-layer integration
+def _three_layer_judgment(fu_yi, qi_state, relations):
+    """
+    Combine three layers per Xiao Ji's method:
+    "扶者吉，抑者凶。生王之时则为有气，死没之时则是无气。
+     若遇合德，虽抑非害。若逢刑克，为凶更重之。"
+    """
+    base = {"support":"positive","suppress":"negative","peer":"neutral",
+            "resource":"positive","pressure":"negative"}.get(fu_yi, "neutral")
+    qi = {"vital":"strong","depleted":"weak","nascent":"moderate"}.get(qi_state, "moderate")
+    has_harmony = "harmony" in relations
+    has_conflict = any(r in relations for r in ["consumption","opposition","hidden_damage"])
+
+    if base == "positive":
+        if qi == "strong":
+            if has_harmony: return "strongly_favorable"
+            if has_conflict: return "favorable_with_tension"
+            return "favorable"
+        elif qi == "weak":
+            if has_harmony: return "latent_potential"
+            if has_conflict: return "unstable"
+            return "weak_positive"
+        else:
+            return "emerging"
+    elif base == "negative":
+        if qi == "strong":
+            if has_harmony: return "restrained_but_safe"
+            if has_conflict: return "strongly_adverse"
+            return "adverse"
+        elif qi == "weak":
+            if has_harmony: return "dormant"
+            if has_conflict: return "critically_adverse"
+            return "depleted_negative"
+        else:
+            return "suppressed"
+    else:
+        if qi == "strong": return "stable"
+        elif qi == "weak": return "stagnant"
+        else: return "transitional"
+
+_JUDGMENT_LABELS = {
+    "strongly_favorable": "Strongly Favorable / 强势有利",
+    "favorable": "Favorable / 有利",
+    "favorable_with_tension": "Favorable with Tension / 有利但有阻力",
+    "latent_potential": "Latent Potential / 潜力待发",
+    "weak_positive": "Weak Positive / 弱势有利",
+    "unstable": "Unstable / 不稳定",
+    "emerging": "Emerging / 正在成形",
+    "restrained_but_safe": "Restrained but Safe / 受限但安全",
+    "adverse": "Adverse / 不利",
+    "strongly_adverse": "Strongly Adverse / 强势不利",
+    "dormant": "Dormant / 休眠",
+    "depleted_negative": "Depleted / 枯竭",
+    "critically_adverse": "Critically Adverse / 极度不利",
+    "suppressed": "Suppressed / 被压制",
+    "stable": "Stable / 稳定",
+    "stagnant": "Stagnant / 停滞",
+    "transitional": "Transitional / 过渡中",
+}
+
 _BRANCH_ORDER = ["zi","chou","yin","mao","chen","si","wu","wei","shen","you","xu","hai"]
 _BRANCH_ELEMENT = {
     "zi": "water", "chou": "earth", "yin": "wood", "mao": "wood",
@@ -330,7 +447,9 @@ def analyze_configuration(binary_str):
     lower_branches = _TRIGRAM_BRANCHES[lower_tri]["inner"]
     upper_branches = _TRIGRAM_BRANCHES[upper_tri]["outer"]
     criteria_map = ["c5", "c6", "c3", "c4", "c1", "c2"]
-    position_analysis = []
+
+    # First pass: collect all branch info
+    all_positions = []
     for i in range(6):
         c_id = criteria_map[i]
         yao_bit = bits[5 - i]
@@ -338,23 +457,44 @@ def analyze_configuration(binary_str):
         branch_el = _BRANCH_ELEMENT[branch]
         relation = _get_structural_relation(palace_element, branch_el)
         lifecycle = _get_lifecycle_stage(palace_element, branch)
-        position_analysis.append({
+        all_positions.append({
             "position": i + 1, "criterion": c_id,
             "state": yao_bit, "state_label": "active" if yao_bit == 1 else "inactive",
+            "branch": branch, "branch_element": branch_el,
             "structural_relation": relation,
             "relation_label": _RELATION_LABELS[relation],
             "lifecycle_stage": lifecycle["id"], "lifecycle_label": lifecycle["label"],
             "lifecycle_energy": lifecycle["energy"],
         })
-    active_stages = [p for p in position_analysis if p["state"] == 1]
-    energy_levels = [p["lifecycle_energy"] for p in active_stages]
-    if not active_stages: overall = "depleted"
-    elif "peak" in energy_levels: overall = "peak"
-    elif energy_levels.count("strong") >= 2: overall = "strong"
-    elif energy_levels.count("growing") >= 2: overall = "growing"
-    elif energy_levels.count("declining") >= 2: overall = "declining"
-    elif "unstable" in energy_levels: overall = "volatile"
-    else: overall = "mixed"
+
+    # Second pass: three-layer judgment for each position
+    active_branches = [p["branch"] for p in all_positions if p["state"] == 1]
+    from collections import Counter
+    judgment_counts = Counter()
+
+    for p in all_positions:
+        fu_yi = _get_fu_yi(palace_element, p["branch_element"])
+        qi_state = _get_qi_state(p["lifecycle_stage"])
+        other_branches = [b for b in active_branches if b != p["branch"]]
+        branch_rels = _check_branch_relations(p["branch"], other_branches)
+        judgment = _three_layer_judgment(fu_yi, qi_state, branch_rels)
+
+        p["direction"] = fu_yi
+        p["vitality"] = qi_state
+        p["branch_relations"] = branch_rels
+        p["judgment"] = judgment
+        p["judgment_label"] = _JUDGMENT_LABELS.get(judgment, judgment)
+
+        if p["state"] == 1:
+            judgment_counts[judgment] += 1
+
+    # Overall assessment from active position judgments
+    if not judgment_counts:
+        overall_judgment = "depleted_negative"
+    else:
+        # Determine overall by most common judgment among active positions
+        overall_judgment = judgment_counts.most_common(1)[0][0]
+
     return {
         "configuration_name": config["name"], "configuration_zh": config["zh"],
         "upper_nature": _TRIGRAM_PROPS[upper_tri]["nature"],
@@ -362,7 +502,10 @@ def analyze_configuration(binary_str):
         "structural_family": _TRIGRAM_PROPS[palace]["nature"],
         "family_element": palace_element,
         "evolution_stage": evolution, "evolution_number": evolution_num,
-        "positions": position_analysis, "overall_lifecycle": overall,
+        "positions": all_positions,
+        "overall_judgment": overall_judgment,
+        "overall_judgment_label": _JUDGMENT_LABELS.get(overall_judgment, overall_judgment),
+        "judgment_distribution": dict(judgment_counts),
     }
 
 # ============================================================
@@ -425,7 +568,8 @@ def save_history(result):
         "domain": result["domain"], "binary_code": result["binary_code"],
         "configuration": result["configuration"]["configuration_name"],
         "configuration_zh": result["configuration"]["configuration_zh"],
-        "lifecycle": result["configuration"]["overall_lifecycle"],
+        "judgment": result["configuration"]["overall_judgment"],
+        "judgment_label": result["configuration"]["overall_judgment_label"],
         "mislocation": result["mislocation"]["type"],
         "momentum": result["cross_layer"]["momentum"],
         "substance": result["cross_layer"]["substance"],
@@ -477,14 +621,14 @@ def quick_scan(domain: str, c1: int, c2: int, c3: int, c4: int, c5: int, c6: int
     config = result["configuration"]
     lines = [f"QUICK SCAN: {domain}",
              f"Binary: {result['binary_code']} | {config['configuration_name']} / {config['configuration_zh']}",
-             f"Lifecycle: {config['overall_lifecycle']} | Evolution: {config['evolution_stage']}",
-             f"Momentum: {result['cross_layer']['momentum']} | Substance: {result['cross_layer']['substance']}",
+             f"Assessment: {config['overall_judgment_label']}",
+             f"Evolution: {config['evolution_stage']}",
              f"Mislocation: {result['mislocation']['type']}", "", "Position Analysis:"]
     for p in config["positions"]:
         s = "+" if p["state"] == 1 else "-"
-        lines.append(f"  [{s}] {p['criterion'].upper()}: {p['relation_label']} @ {p['lifecycle_label']}")
-    lines.extend(["", f"Cross-layer: {result['cross_layer']['interpretation']}",
-                   f"Form-Flow: {result['mislocation']['description']}"])
+        lines.append(f"  [{s}] {p['criterion'].upper()}: {p['judgment_label']}")
+        lines.append(f"      {p['relation_label']} @ {p['lifecycle_label']}")
+    lines.extend(["", f"Form-Flow: {result['mislocation']['description']}"])
     return "\n".join(lines)
 
 @app.tool()
@@ -521,15 +665,17 @@ def deep_scan(domain: str,
     lines = [f"DEEP CONTRARIAN ANALYSIS: {domain}", f"Binary Code: {result['binary_code']}",
              f"Configuration: {config['configuration_name']} / {config['configuration_zh']}",
              f"Structural Family: {config['structural_family']}",
-             f"Evolution: {config['evolution_stage']}", f"Overall Lifecycle: {config['overall_lifecycle']}",
+             f"Evolution: {config['evolution_stage']}",
+             f"Overall Assessment: {config['overall_judgment_label']}",
              f"{'=' * 50}", ""]
     for c_id in ["c1","c2","c3","c4","c5","c6"]:
         rc = reasoning_chain[c_id]
         pos = next(p for p in config["positions"] if p["criterion"] == c_id)
         s = "+" if rc["judgment"] == 1 else "-"
-        lines.extend([f"[{c_id}] {rc['criterion']}", f"  Judgment: [{s}] {rc['judgment_label']}",
-                       f"  Structural Role: {pos['relation_label']}",
-                       f"  Lifecycle: {pos['lifecycle_label']} (energy: {pos['lifecycle_energy']})"])
+        lines.extend([f"[{c_id}] {rc['criterion']}", f"  State: [{s}] {rc['judgment_label']}",
+                       f"  Assessment: {pos['judgment_label']}",
+                       f"  Direction: {pos['direction']} | Vitality: {pos['vitality']} | Relations: {', '.join(pos['branch_relations'])}",
+                       f"  Role: {pos['relation_label']} @ {pos['lifecycle_label']}"])
         for ph in FIVE_PHASES:
             lines.append(f"    {ph}: {rc['dimensions'][ph]}")
         lines.append("")
