@@ -1,13 +1,19 @@
 """
-FCAS Daily Scanner v2.1
+FCAS Daily Scanner v3.0
 气象分析系统 每日扫描器
 
 Architecture:
 - Qimen engine (fcas_engine_v2.py) does ALL structural judgment — no LLM involved
 - stock_positioning.py provides per-stock palace lookup
+- assess_fuhua_liuqin.py provides per-stock 六亲 assessment (13W signal)
 - Claude API is OPTIONAL annotation layer (news context only, not structural)
 - Output in business language, zero metaphysical terms
 - Telegram push with multi-message support (4096 char limit)
+
+v3.0 changes (2026-04-07, 符化六亲整合):
+- 六亲v2 per-stock assessment integrated (13W-level signal)
+- Cross-signal: 天时×六亲 interaction label (邵雍"变之与应常反对")
+- Liuqin labels added to output and history
 
 v2.1 changes (2026-04-03, per 皇极经世书 10-round reading):
 - #88: Max single-step change constraint — "自极乱至极治必三变"
@@ -42,6 +48,7 @@ from fcas_engine_v2 import (
 from stock_positioning import STOCK_POSITIONING, find_stock_palace
 from assess_stock_tianshi_baojian import assess_stock_tianshi_baojian
 from assess_fushi import assess_fushi, FUSHI_SIGNAL, apply_fushi_modifier
+from assess_fuhua_liuqin import assess_stock_liuqin
 from fcas_utils import load_json_file, save_json_file, send_telegram
 
 # === Config ===
@@ -82,6 +89,32 @@ ASSESSMENT_TAG = {
     "STRONG_FAVORABLE":   "TAILWIND++",
     "FAVORABLE_TRAPPED":  "TAILWIND⚠",
     "PARTIAL_GOOD_PLUS":  "TAILWIND+",
+}
+
+# 六亲标签 → 商业语言 (13W信号)
+LIUQIN_TAG = {
+    "STRONGLY_FAVORABLE": "FLOW++",    # 六亲结构极佳
+    "FAVORABLE":          "FLOW+",     # 六亲结构良好
+    "PARTIAL_GOOD":       "FLOW",      # 六亲结构偏正
+    "NEUTRAL":            "STEADY",    # 六亲结构中性
+    "PARTIAL_BAD":        "DRAIN",     # 六亲结构偏负
+    "UNFAVORABLE":        "DRAIN+",    # 六亲结构不利
+}
+
+# 天时×六亲 交叉信号 (基于"变之与应常反对"原则)
+# 回测验证: T_FAV×L_UNFAV=+3.93% > T_FAV×L_FAV=+2.38%
+# 跨层张力产生价格运动，同向叠加无增益
+CROSS_SIGNAL_MAP = {
+    # (tianshi_direction, liuqin_direction) → cross_signal
+    ('FAV', 'UNFAV'): 'TENSION+',    # 天时好×六亲差 = 最强信号(+3.93%)
+    ('ADV', 'FAV'):   'TENSION',     # 天时差×六亲好 = 次强(+3.71%)
+    ('FAV', 'FAV'):   'ALIGNED',     # 双吉 = 反而最弱(+2.38%)
+    ('ADV', 'UNFAV'): 'ALIGNED-',    # 双凶
+    ('NEU', 'FAV'):   'LEAN+',       # 中性×好
+    ('NEU', 'UNFAV'): 'LEAN-',       # 中性×差
+    ('FAV', 'NEU'):   'LEAN+',       # 好×中性
+    ('ADV', 'NEU'):   'LEAN-',       # 差×中性
+    ('NEU', 'NEU'):   'FLAT',        # 双中性
 }
 
 ASSESSMENT_GUIDANCE = {
@@ -149,6 +182,91 @@ DISCLAIMER = (
     "~30% directional / ~70% neutral — by design.\n"
     "Precision target: 70%."
 )
+
+# ============================================================
+# 六亲辅助函数
+# ============================================================
+
+# 地支索引 → 中文
+_DIZHI_DECODE = {
+    0: '子', 1: '丑', 2: '寅', 3: '卯', 4: '辰', 5: '巳',
+    6: '午', 7: '未', 8: '申', 9: '酉', 10: '戌', 11: '亥',
+}
+
+# 宫位对应地支（用于空亡计算）
+_GONG_DIZHI = {
+    1: ['子'], 2: ['丑', '未'], 3: ['卯'], 4: ['辰', '巳'],
+    6: ['戌', '亥'], 7: ['酉'], 8: ['丑', '寅'], 9: ['午'],
+}
+
+
+def get_month_branch_str(ju):
+    """从QimenJu获取月支中文字符串（六亲模块需要）"""
+    if hasattr(ju, 'month_gz') and ju.month_gz:
+        _, mz = ju.month_gz
+        return _DIZHI_DECODE.get(mz, '辰')
+    # fallback: 宫号近似
+    _gong_to_zhi = {
+        1: '子', 2: '丑', 3: '卯', 4: '辰',
+        6: '戌', 7: '酉', 8: '丑', 9: '午',
+    }
+    if hasattr(ju, 'month_branch'):
+        return _gong_to_zhi.get(ju.month_branch, '辰')
+    return '辰'
+
+
+def get_kongwang_palaces(ju):
+    """从QimenJu获取空亡宫位集合（palace IDs）"""
+    kw_palaces = set()
+    if not ju.kongwang:
+        return kw_palaces
+    # 引擎的kongwang是地支索引 → 转中文 → 找对应宫位
+    kw_zhis = set()
+    for kw in ju.kongwang:
+        zhi_str = _DIZHI_DECODE.get(kw)
+        if zhi_str:
+            kw_zhis.add(zhi_str)
+    for palace_id, dizhi_list in _GONG_DIZHI.items():
+        for dz in dizhi_list:
+            if dz in kw_zhis:
+                kw_palaces.add(palace_id)
+                break
+    return kw_palaces
+
+
+def _tianshi_direction(assessment):
+    """将天时标签归类为方向（用于交叉信号）"""
+    if assessment in ('FAVORABLE', 'STRONG_FAVORABLE', 'PARTIAL_GOOD',
+                      'PARTIAL_GOOD_PLUS', 'STAGNANT_JI',
+                      'SLIGHT_FAV'):
+        return 'FAV'
+    elif assessment in ('UNFAVORABLE', 'PARTIAL_BAD', 'ADVERSE',
+                        'SLIGHT_ADV', 'STAGNANT_XIONG', 'FAVORABLE_TRAPPED'):
+        return 'ADV'
+    else:  # NEUTRAL, STAGNANT, VOLATILE, etc.
+        return 'NEU'
+
+
+def _liuqin_direction(label):
+    """将六亲标签归类为方向（用于交叉信号）"""
+    if label in ('STRONGLY_FAVORABLE', 'FAVORABLE'):
+        return 'FAV'
+    elif label in ('UNFAVORABLE', 'PARTIAL_BAD'):
+        return 'UNFAV'
+    else:  # PARTIAL_GOOD, NEUTRAL
+        return 'NEU'
+
+
+def get_cross_signal(tianshi_assessment, liuqin_label):
+    """
+    计算天时×六亲交叉信号
+
+    原文依据: 邵雍《皇极经世》"变之与应，常反对也"
+    回测验证: T_FAV×L_UNFAV=+3.93% > T_FAV×L_FAV=+2.38%
+    """
+    t_dir = _tianshi_direction(tianshi_assessment)
+    l_dir = _liuqin_direction(liuqin_label)
+    return CROSS_SIGNAL_MAP.get((t_dir, l_dir), 'FLAT')
 
 
 def load_history():
@@ -334,6 +452,10 @@ def run_qimen_scan():
     fushi_r = assess_fushi(ju)
     fushi_signal = FUSHI_SIGNAL.get(fushi_r['relation_type'], 'NEUTRAL')
 
+    # 六亲评估准备（全局参数，per-stock调用）
+    month_branch_str = get_month_branch_str(ju)
+    kw_palaces = get_kongwang_palaces(ju)
+
     # Per-stock assessment
     stock_results = []
     for sc in SCAN_STOCKS:
@@ -356,6 +478,14 @@ def run_qimen_scan():
                     assessment, prev_stock.get('assessment', 'NEUTRAL')
                 )
         
+        # 六亲评估（per-stock, 13W信号）
+        liuqin_r = assess_stock_liuqin(ju, sc, month_branch_str, kw_palaces)
+        liuqin_label = liuqin_r['label'] if liuqin_r else 'NEUTRAL'
+        liuqin_score = liuqin_r['total_score'] if liuqin_r else 0.0
+
+        # 天时×六亲 交叉信号
+        cross_signal = get_cross_signal(assessment, liuqin_label)
+
         # Get palace info
         palace_num, plate = find_stock_palace(ju, sc)
         
@@ -387,6 +517,9 @@ def run_qimen_scan():
             'original_assessment': original_assessment if clamped else None,
             'fushi_relation': fushi_r['relation_type'],
             'fushi_signal': fushi_signal,
+            'liuqin_label': liuqin_label,
+            'liuqin_score': liuqin_score,
+            'cross_signal': cross_signal,
         })
     
     # Cycle info (business language)
@@ -410,7 +543,7 @@ def format_output(result):
     """Format scan results in B+C hybrid style."""
     lines = []
     
-    lines.append(f"FCAS DAILY SCAN v2.1 | {result['timestamp']}")
+    lines.append(f"FCAS DAILY SCAN v3.0 | {result['timestamp']}")
     lines.append(f"Cycle: {result['cycle']}")
     if result.get('fushi_relation'):
         lines.append(f"符使: {result['fushi_relation']} [{result['fushi_signal']}]")
@@ -423,9 +556,15 @@ def format_output(result):
         guidance = ASSESSMENT_GUIDANCE.get(sr['assessment'], '')
         p = sr['palace_num'] if sr['palace_num'] else '?'
         
+        # 六亲标签
+        lq_tag = LIUQIN_TAG.get(sr.get('liuqin_label', 'NEUTRAL'), 'STEADY')
+        lq_score = sr.get('liuqin_score', 0.0)
+        cross = sr.get('cross_signal', 'FLAT')
+        
         lines.append("")
         lines.append(f"━━━ {sr['name']} ({sr['code']}) ━━━")
         lines.append(f"[{tag}] {sr['score']:+.1f} | P{p}:{sr['zone']}-{sr['asset']}-{sr['channel']}")
+        lines.append(f"[{lq_tag}] {lq_score:+.1f} | ×{cross}")
         
         # #88: Show clamped annotation
         if sr.get('clamped'):
@@ -444,6 +583,12 @@ def format_output(result):
             lines.append(f"↕ {flip['detail']}")
         
         lines.append(f"→ {guidance}")
+        
+        # Cross-signal guidance (TENSION = strongest alpha source)
+        if cross == 'TENSION+':
+            lines.append(f"⚡ Max tension (T×L opposing). Prime 13W window.")
+        elif cross == 'TENSION':
+            lines.append(f"⚡ Tension signal. Watch for 13W opportunity.")
         
         # #83: 未然之防 warning at extremes
         warning = get_weiran_warning(sr['assessment'])
@@ -474,6 +619,9 @@ def save_history(result):
             'score': sr['score'],
             'special': sr['special'],
             'zone': sr['zone'],
+            'liuqin_label': sr.get('liuqin_label', 'NEUTRAL'),
+            'liuqin_score': sr.get('liuqin_score', 0.0),
+            'cross_signal': sr.get('cross_signal', 'FLAT'),
         }
         if sr.get('clamped'):
             rec['clamped_from'] = sr['original_assessment']
@@ -498,7 +646,7 @@ def save_history(result):
 
 def main():
     print("=" * 50)
-    print("FCAS Daily Scanner v2.1")
+    print("FCAS Daily Scanner v3.0")
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print("=" * 50)
     
