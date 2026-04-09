@@ -33,6 +33,7 @@ from fcas_engine_v2 import (
     REL_BIHE, REL_WOSHENG, REL_WOKE, REL_SHENGWO, REL_KEWO,
     WS_WANG, WS_XIANG, WS_XIU, WS_QIU, WS_SI,
     TG_YI, TG_BING, TG_DING,
+    get_nayin,
     TIANGAN_NAMES,
 )
 
@@ -308,7 +309,29 @@ def _d4_stock_palace_xingmen(ju, stock_palace, stock_stem_idx):
             score -= 1
             details.append(f"{stem_name}克宫(耗-1)")
         # 比和 = 0
-    
+
+    # --- 纳音微调 (天盘干 + 地盘干 → 纳音五行 × 宫位五行) ---
+    # 权重极小(±0.3)，仅作细化补充（邵雍"天地之道直而已"，不堆叠）
+    if gong_wx is not None:
+        heaven_stem = ju.heaven.get(stock_palace)
+        ground_stem = ju.ground.get(stock_palace)
+        if heaven_stem is not None and ground_stem is not None:
+            # 需要天盘干+地盘干对应地支方可查纳音；此处用宫位对应地支近似
+            # 实际纳音需完整干支对，暂用天盘干×宫卦地支（坎1→子0, 坤2→丑1…）
+            _GONG_TO_DZ = {1: 0, 2: 1, 3: 3, 4: 4, 6: 10, 7: 9, 8: 2, 9: 6}
+            approx_dz = _GONG_TO_DZ.get(stock_palace)
+            if approx_dz is not None:
+                nayin = get_nayin(heaven_stem, approx_dz)
+                if nayin:
+                    ny_wx, ny_name = nayin
+                    ny_rel = shengke(ny_wx, gong_wx)
+                    if ny_rel == REL_WOSHENG:   # 纳音生宫五行
+                        score += 0.3
+                        details.append(f"纳音{ny_name}生宫(+0.3)")
+                    elif ny_rel == REL_WOKE:    # 纳音克宫五行
+                        score -= 0.3
+                        details.append(f"纳音{ny_name}克宫(-0.3)")
+
     return score, "；".join(details) if details else f"{gong_name}宫无星门数据"
 
 
