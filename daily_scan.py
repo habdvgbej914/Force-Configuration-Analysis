@@ -601,9 +601,10 @@ def run_qimen_scan():
         
         # Get star/gate indices at the primary palace
         star_idx = ju.stars.get(palace_num) if palace_num else None
-        # 中宫寄坤: P5 has no gate, use P2's gate
+        # 中宫寄宫: P5 has no gate, use tianqin_host's gate (阳遁P2, 阴遁P8)
+        _tianqin_host = getattr(ju, 'tianqin_host', 2)
         if palace_num == 5:
-            gate_idx = ju.gates.get(2)
+            gate_idx = ju.gates.get(_tianqin_host)
         else:
             gate_idx = ju.gates.get(palace_num) if palace_num else None
         

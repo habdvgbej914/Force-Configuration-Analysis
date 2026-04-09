@@ -1152,52 +1152,58 @@ def paipan(dt):
     # === Step 8: Find 直符 and 直使 ===
     # 旬首所遁之仪在地盘的宫 → 该宫的星=直符, 该宫的门=直使
     dun_stem = JIAZI_DUN[xun_index]
-    
+
+    # 天禽寄宫: 阳遁寄坤2宫, 阴遁寄艮8宫
+    # 依据《刘文元奇门启悟》: "阳遁寄坤2宫，阴遁寄艮8宫之法，是符合易理的。"
+    # 《宝鉴》: "阳遁阴遁，俱寄坤宫。一本：阳遁寄坤，阴遁寄艮。"
+    tianqin_host = 2 if is_yangdun else 8
+    ju.tianqin_host = tianqin_host  # expose for downstream use
+
     zhifu_home = None
     for palace, stem in ju.ground.items():
         if stem == dun_stem:
             if palace == 5:
-                # 中5宫寄坤2 — 按《宝鉴》: "甲辰在中宫，寄于坤二"
-                zhifu_home = 2
+                # 中5宫 → 天禽寄宫（阳遁坤2，阴遁艮8）
+                zhifu_home = tianqin_host
             else:
                 zhifu_home = palace
             break
     if zhifu_home is None:
-        zhifu_home = 2  # Fallback
-    
+        zhifu_home = tianqin_host  # Fallback
+
     # 直符星 = home palace's star
     for star, home_p in STAR_HOME_PALACE.items():
         if home_p == zhifu_home:
             ju.zhifu_star = star
             break
-    
+
     # 直使门 = home palace's gate
     for gate, home_p in GATE_HOME_PALACE.items():
         if home_p == zhifu_home:
             ju.zhishi_gate = gate
             break
-    
+
     # === Step 9: 直符加时干 - determine where 直符 flies to ===
     # Find the palace where the hour stem sits on the ground plate
     hour_stem = TIANGAN_BY_INDEX[hour_tg_idx]
-    
+
     # If hour stem is 甲, use the corresponding 六仪
     if hour_stem == TG_JIA:
         hour_stem = dun_stem
-    
+
     zhifu_target = None
     for palace, stem in ju.ground.items():
         if stem == hour_stem:
             if palace == 5:
-                zhifu_target = 2  # 寄坤
+                zhifu_target = tianqin_host  # 动态寄宫
             else:
                 zhifu_target = palace
             break
     if zhifu_target is None:
-        zhifu_target = 2  # Fallback
-    
+        zhifu_target = tianqin_host  # Fallback
+
     ju.zhifu_palace = zhifu_target
-    
+
     # === Step 10: 直使加时支 ===
     # 直使 follows the hour branch
     # Per《宝鉴》: "直使随时支转宫"
@@ -1208,49 +1214,50 @@ def paipan(dt):
     # moves that many palaces forward (阳遁) or backward (阴遁)
     xun_head_dz = XUN_HEAD_DIZHI[xun_index]
     offset = (hour_dz - xun_head_dz + 12) % 12
-    
+
     PALACE_SEQ = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     zhishi_home = GATE_HOME_PALACE[ju.zhishi_gate]
     zhishi_home_idx = PALACE_SEQ.index(zhishi_home)
-    
+
     if is_yangdun:
         zhishi_target_idx = (zhishi_home_idx + offset) % 9
     else:
         zhishi_target_idx = (zhishi_home_idx - offset) % 9
-    
+
     ju.zhishi_palace = PALACE_SEQ[zhishi_target_idx]
-    
-    # === Step 11: Layout stars (FIXED: 外环旋转) ===
+
+    # === Step 11: Layout stars (外环旋转, 天禽寄宫动态) ===
     # 转盘法: 九星按外环[1,8,3,4,9,2,7,6]整体旋转
     RING = PALACE_FLY_FORWARD  # [1, 8, 3, 4, 9, 2, 7, 6]
-    
-    # 值符星原位和目标位在外环的索引
-    zhifu_home_ring = 2 if zhifu_home == 5 else zhifu_home  # 中5寄坤2
-    zhifu_target_ring = 2 if zhifu_target == 5 else zhifu_target
-    
+
+    # 值符星原位和目标位在外环的索引（中5宫用动态寄宫替代）
+    zhifu_home_ring = tianqin_host if zhifu_home == 5 else zhifu_home
+    zhifu_target_ring = tianqin_host if zhifu_target == 5 else zhifu_target
+
     from_idx = RING.index(zhifu_home_ring)
     to_idx = RING.index(zhifu_target_ring)
     star_steps = (to_idx - from_idx) % 8
-    
+
     star_layout = {}
     for star in range(9):
         if star == STAR_QIN:
-            continue  # 天禽寄坤
+            continue  # 天禽固定寄宫
         home_p = STAR_HOME_PALACE[star]
-        home_ring = 2 if home_p == 5 else home_p
+        home_ring = tianqin_host if home_p == 5 else home_p
         ring_idx = RING.index(home_ring)
         new_ring_idx = (ring_idx + star_steps) % 8
         new_palace = RING[new_ring_idx]
         star_layout[new_palace] = star
-    star_layout[5] = STAR_QIN
+    star_layout[5] = STAR_QIN  # 天禽标记在中5宫（实际落宫见tianqin_host）
     ju.stars = star_layout
     
     # === Step 12: Layout heaven plate stems (FIXED: 星带地盘干走) ===
     # 天盘天干 = 移到该宫的星所携带的原位地盘干
+    # 天禽在中5宫，其天干来自动态寄宫的地盘干
     heaven = {}
     for new_palace, star in star_layout.items():
         if star == STAR_QIN:
-            heaven[5] = ju.ground.get(5, ju.ground.get(2))
+            heaven[5] = ju.ground.get(5, ju.ground.get(tianqin_host))
             continue
         star_home = STAR_HOME_PALACE[star]
         heaven[new_palace] = ju.ground[star_home]
