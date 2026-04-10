@@ -138,35 +138,36 @@ _MIN_N = 30  # 低于此样本量的组合标记为SPARSE
 CROSS_3LAYER = {
     # (grade, r13w_pct, n)
     # N<30 → SPARSE at runtime (high r13w not reliable)
-    ('NEU', 'ADV', 'ADV'): ('PRIME★★★',  +15.84,   9),   # N=9  → SPARSE
-    ('ADV', 'ADV', 'FAV'): ('PRIME★★★',   +7.39,   5),   # N=5  → SPARSE
-    ('NEU', 'ADV', 'FAV'): ('PRIME★★★',   +5.82,  22),   # N=22 → SPARSE
+    # 基于超神修正后回测结果 (2026-04-10 更新)
+    ('NEU', 'ADV', 'ADV'): ('PRIME★★★',  +15.65,   9),   # N=9  → SPARSE
+    ('ADV', 'ADV', 'FAV'): ('PRIME★★★',   +6.18,   7),   # N=7  → SPARSE
+    ('NEU', 'ADV', 'FAV'): ('PRIME★★★',   +6.10,  21),   # N=21 → SPARSE
     # STRONG★★ (N≥30, reliable)
-    ('FAV', 'NEU', 'ADV'): ('STRONG★★',   +4.77,  43),
-    ('FAV', 'FAV', 'ADV'): ('STRONG★★',   +4.50,  63),
+    ('FAV', 'FAV', 'ADV'): ('STRONG★★',   +5.26,  64),   # 升级: 旧+4.50→新+5.26
+    ('FAV', 'FAV', 'NEU'): ('STRONG★★',   +4.32,  85),   # 升级: 旧GOOD→新STRONG
     # GOOD★ (r13w 3-4%)
-    ('FAV', 'NEU', 'FAV'): ('GOOD★',      +3.84, 180),
-    ('NEU', 'FAV', 'FAV'): ('GOOD★',      +3.71, 850),
-    ('FAV', 'FAV', 'NEU'): ('GOOD★',      +3.45,  80),
-    ('ADV', 'NEU', 'FAV'): ('GOOD★',      +3.31, 264),
-    ('FAV', 'NEU', 'NEU'): ('GOOD★',      +3.20,  34),
-    ('ADV', 'FAV', 'FAV'): ('GOOD★',      +3.11, 417),
+    ('NEU', 'FAV', 'FAV'): ('GOOD★',      +3.93, 849),
+    ('FAV', 'NEU', 'NEU'): ('GOOD★',      +3.48,  36),
+    ('FAV', 'NEU', 'FAV'): ('GOOD★',      +3.24, 179),
+    ('FAV', 'NEU', 'ADV'): ('GOOD★',      +3.23,  45),
+    ('NEU', 'FAV', 'NEU'): ('GOOD★',      +2.98, 231),
     # MODERATE (r13w 2-3%)
-    ('ADV', 'FAV', 'NEU'): ('MODERATE',   +2.85, 110),
-    ('NEU', 'FAV', 'NEU'): ('MODERATE',   +2.73, 239),
-    ('NEU', 'NEU', 'ADV'): ('MODERATE',   +2.11, 207),
-    ('NEU', 'NEU', 'FAV'): ('MODERATE',   +1.99, 552),
+    ('ADV', 'FAV', 'FAV'): ('MODERATE',   +2.75, 413),
+    ('ADV', 'NEU', 'FAV'): ('MODERATE',   +2.61, 274),
+    ('NEU', 'NEU', 'ADV'): ('MODERATE',   +2.59, 200),
+    ('NEU', 'NEU', 'FAV'): ('MODERATE',   +2.52, 543),
     # NEUTRAL (r13w 1-2%)
-    ('NEU', 'NEU', 'NEU'): ('NEUTRAL',    +1.65, 169),
-    ('ADV', 'NEU', 'ADV'): ('NEUTRAL',    +1.50,  75),
-    ('NEU', 'FAV', 'ADV'): ('NEUTRAL',    +1.45, 265),
+    ('NEU', 'NEU', 'NEU'): ('NEUTRAL',    +1.97, 166),
+    ('ADV', 'FAV', 'NEU'): ('NEUTRAL',    +1.66, 113),
+    ('NEU', 'FAV', 'ADV'): ('NEUTRAL',    +1.52, 268),
+    ('ADV', 'NEU', 'ADV'): ('NEUTRAL',    +1.13,  80),
     # WEAK (r13w 0-1%)
-    ('FAV', 'FAV', 'FAV'): ('WEAK',       +0.52, 237),
-    ('ADV', 'FAV', 'ADV'): ('WEAK',       +0.49,  93),
-    ('ADV', 'NEU', 'NEU'): ('WEAK',       +0.49,  76),
-    # ADVERSE (r13w < 0%) — both N<30, SPARSE at runtime
-    ('NEU', 'ADV', 'NEU'): ('ADVERSE',    -2.66,   7),   # N=7  → SPARSE
-    ('FAV', 'ADV', 'FAV'): ('ADVERSE',    -6.95,   7),   # N=7  → SPARSE
+    ('FAV', 'FAV', 'FAV'): ('WEAK',       +0.39, 242),
+    # ADVERSE (r13w < 0%)
+    ('ADV', 'FAV', 'ADV'): ('ADVERSE',    -0.34,  89),   # N≥30, valid
+    ('ADV', 'NEU', 'NEU'): ('ADVERSE',    -0.36,  77),   # N≥30, valid
+    ('NEU', 'ADV', 'NEU'): ('ADVERSE',    -2.29,   6),   # N=6  → SPARSE
+    ('FAV', 'ADV', 'FAV'): ('ADVERSE',    -9.16,   6),   # N=6  → SPARSE
 }
 
 ASSESSMENT_GUIDANCE = {
